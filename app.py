@@ -1,17 +1,41 @@
 
 import base64
+import os
 import time
+from pathlib import Path
+
 import requests
 import streamlit as st
+from PIL import Image
 
-HR_SERVICE_URL = "http://localhost:4000"
+HR_SERVICE_URL = os.getenv("HR_SERVICE_URL", "http://localhost:4000").rstrip("/")
+
+APP_DIR = Path(__file__).resolve().parent
+PICTURES_DIR = APP_DIR / "pictures"
+
+
+def find_picture(stem):
+    """Find pic files whether they are .jpg, .jpeg, .png, or .webp."""
+    for extension in (".jpg", ".jpeg", ".png", ".webp"):
+        candidate = PICTURES_DIR / f"{stem}{extension}"
+        if candidate.exists():
+            return candidate
+    return None
+
+
+page_icon_path = find_picture("pic10")
+page_icon = Image.open(page_icon_path) if page_icon_path else "👥"
 
 st.set_page_config(
-    page_title="HR Policy Verification",
-    page_icon="👥",
+    page_title="HR Candidate Dashboard",
+    page_icon=page_icon,
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+
+
+
 
 # -----------------------------
 # Palette from the Figma design
@@ -50,13 +74,36 @@ def svg_avatar(bg, skin, hair, shirt, long_hair=False):
     encoded = base64.b64encode(svg.encode("utf-8")).decode("utf-8")
     return f"data:image/svg+xml;base64,{encoded}"
 
+def load_profile_image(path):
+    path = Path(path)
+    if not path.is_absolute():
+        path = APP_DIR / path
+
+    with open(path, "rb") as image_file:
+        encoded = base64.b64encode(image_file.read()).decode("utf-8")
+
+    extension = path.suffix.lower().lstrip(".")
+
+    if extension == "jpg":
+        extension = "jpeg"
+
+    return f"data:image/{extension};base64,{encoded}"
+
+
+james_picture_path = find_picture("pic11")
+JAMES_PHOTO = (
+    load_profile_image(james_picture_path)
+    if james_picture_path
+    else None
+)
+
 CANDIDATES = [
     {
         "id": 1,
         "name": "Ava Martinez",
         "phone": "0995 920 122",
         "position": "Software Engineer",
-        "status": "Compensation \u2022 Pending",
+        "status": "Awaiting Verification",
         "email": "ava.martinez@example.com",
         "experience": "4 years",
         "skills": ["Python", "JavaScript", "REST APIs"],
@@ -65,14 +112,14 @@ CANDIDATES = [
         "salary_expectation": 88000,
         "budget_min": 78000,
         "budget_max": 95000,
-        "photo": svg_avatar(ORANGE, "#F2C5A2", "#3B2A20", BLUE, False),
+        "photo": load_profile_image("pictures/pic1.jpg"),
     },
     {
         "id": 2,
         "name": "Noah Bennett",
         "phone": "0917 381 440",
         "position": "UI/UX Designer",
-        "status": "Compensation \u2713 Cleared",
+        "status": "Verified",
         "email": "noah.bennett@example.com",
         "experience": "5 years",
         "skills": ["Figma", "Prototyping", "UX Research"],
@@ -81,14 +128,14 @@ CANDIDATES = [
         "salary_expectation": 72000,
         "budget_min": 65000,
         "budget_max": 80000,
-        "photo": svg_avatar(ORANGE, "#D9A278", "#1F1F1F", BLUE, False),
+        "photo": load_profile_image("pictures/pic2.jpg"),
     },
     {
         "id": 3,
         "name": "Mia Santos",
         "phone": "0998 613 725",
         "position": "Data Analyst",
-        "status": "Compensation \u2022 Pending",
+        "status": "Awaiting Verification",
         "email": "mia.santos@example.com",
         "experience": "3 years",
         "skills": ["SQL", "Python", "Tableau"],
@@ -97,14 +144,14 @@ CANDIDATES = [
         "salary_expectation": 67000,
         "budget_min": 60000,
         "budget_max": 72000,
-        "photo": svg_avatar(ORANGE, "#E6B58D", "#4A2B1D", BLUE, True),
+        "photo": load_profile_image("pictures/pic3.jpg"),
     },
     {
         "id": 4,
         "name": "Liam Cruz",
         "phone": "0927 455 810",
         "position": "Frontend Developer",
-        "status": "Compensation \u2713 Cleared",
+        "status": "Verified",
         "email": "liam.cruz@example.com",
         "experience": "4 years",
         "skills": ["React", "TypeScript", "CSS"],
@@ -113,14 +160,14 @@ CANDIDATES = [
         "salary_expectation": 91000,
         "budget_min": 70000,
         "budget_max": 88000,
-        "photo": svg_avatar(ORANGE, "#DDA57E", "#2A201C", BLUE, False),
+        "photo": load_profile_image("pictures/pic4.jpg"),
     },
     {
         "id": 5,
         "name": "Sophia Reyes",
         "phone": "0918 244 663",
         "position": "HR Specialist",
-        "status": "Compensation \u2022 Pending",
+        "status": "Awaiting Verification",
         "email": "sophia.reyes@example.com",
         "experience": "6 years",
         "skills": ["Recruiting", "Onboarding", "HRIS"],
@@ -129,14 +176,14 @@ CANDIDATES = [
         "salary_expectation": 62000,
         "budget_min": 55000,
         "budget_max": 68000,
-        "photo": svg_avatar(ORANGE, "#E8B48E", "#512F24", BLUE, True),
+        "photo": load_profile_image("pictures/pic5.jpg"),
     },
     {
         "id": 6,
         "name": "Ethan Lim",
         "phone": "0997 503 219",
         "position": "Backend Developer",
-        "status": "Compensation \u2713 Cleared",
+        "status": "Verified",
         "email": "ethan.lim@example.com",
         "experience": "5 years",
         "skills": ["Python", "Django", "PostgreSQL"],
@@ -145,14 +192,14 @@ CANDIDATES = [
         "salary_expectation": 90000,
         "budget_min": 76000,
         "budget_max": 98000,
-        "photo": svg_avatar(ORANGE, "#D8A17B", "#202020", BLUE, False),
+        "photo": load_profile_image("pictures/pic6.jpg"),
     },
     {
         "id": 7,
         "name": "Isabella Flores",
         "phone": "0916 774 390",
         "position": "Product Manager",
-        "status": "Compensation \u2713 Cleared",
+        "status": "Verified",
         "email": "isabella.flores@example.com",
         "experience": "7 years",
         "skills": ["Product Strategy", "Agile", "Roadmaps"],
@@ -161,14 +208,14 @@ CANDIDATES = [
         "salary_expectation": 110000,
         "budget_min": 95000,
         "budget_max": 115000,
-        "photo": svg_avatar(ORANGE, "#EAB790", "#493027", BLUE, True),
+        "photo": load_profile_image("pictures/pic7.jpg"),
     },
     {
         "id": 8,
         "name": "Gabriel Tan",
         "phone": "0928 618 502",
         "position": "QA Engineer",
-        "status": "Compensation \u2022 Pending",
+        "status": "Awaiting Verification",
         "email": "gabriel.tan@example.com",
         "experience": "4 years",
         "skills": ["Selenium", "Playwright", "API Testing"],
@@ -177,14 +224,14 @@ CANDIDATES = [
         "salary_expectation": 70000,
         "budget_min": 62000,
         "budget_max": 75000,
-        "photo": svg_avatar(ORANGE, "#D7A37D", "#29231F", BLUE, False),
+        "photo": load_profile_image("pictures/pic8.jpg"),
     },
     {
         "id": 9,
         "name": "Chloe Navarro",
         "phone": "0991 325 447",
         "position": "Marketing Specialist",
-        "status": "Compensation \u2713 Cleared",
+        "status": "Verified",
         "email": "chloe.navarro@example.com",
         "experience": "3 years",
         "skills": ["Content", "Analytics", "Campaigns"],
@@ -193,7 +240,7 @@ CANDIDATES = [
         "salary_expectation": 58000,
         "budget_min": 52000,
         "budget_max": 65000,
-        "photo": svg_avatar(ORANGE, "#E7B48D", "#5A3428", BLUE, True),
+        "photo": load_profile_image("pictures/pic9.jpg"),
     },
 ]
 
@@ -212,29 +259,96 @@ def candidate_status(candidate):
 
 def make_proof(candidate):
     """
-    Calls the real Midnight HR verification service (hr-cli/src/server.ts).
-    Only candidateId and the public budget are sent — the candidate's actual
-    salary never leaves the Node service and is never part of this request
-    or its response. Note: this proves salary <= budget_max only (a
-    one-sided check), which is what the current contract supports; it does
-    not check budget_min the way the old mock did.
-    """
-    try:
-        resp = requests.post(
-            f"{HR_SERVICE_URL}/verify",
-            json={"candidateId": candidate["id"], "budget": candidate["budget_max"]},
-            timeout=60,  # real proof generation can take a while
-        )
-        resp.raise_for_status()
-        data = resp.json()
-        eligible = data["verified"]
-        # Real on-chain contract address, used as the "proof id" shown in the UI.
-        proof_id = data["contractAddress"][:16].upper()
-        return eligible, proof_id
-    except requests.RequestException as e:
-        st.error(f"Verification service unreachable: {e}")
-        return False, "ERROR"
+    Calls the real Midnight HR verification service.
 
+    The Streamlit app sends only:
+      - candidateId
+      - the public company budget
+
+    The candidate salary is not included in this HTTP request.
+
+    The function tries the configured service URL first, then the two common
+    local Windows loopback forms. It returns:
+      (eligible, contract_address, error_message)
+    """
+    service_urls = []
+
+    for url in (
+        HR_SERVICE_URL,
+        "http://127.0.0.1:4000",
+        "http://localhost:4000",
+    ):
+        clean_url = url.rstrip("/")
+        if clean_url not in service_urls:
+            service_urls.append(clean_url)
+
+    connection_errors = []
+
+    for service_url in service_urls:
+        try:
+            resp = requests.post(
+                f"{service_url}/verify",
+                json={
+                    "candidateId": candidate["id"],
+                    "budget": candidate["budget_max"],
+                },
+                timeout=60,
+            )
+            resp.raise_for_status()
+
+            data = resp.json()
+
+            if "verified" not in data:
+                return None, None, (
+                    "The verification service responded, but did not return "
+                    "the expected 'verified' field."
+                )
+
+            if "contractAddress" not in data:
+                return None, None, (
+                    "The verification service responded, but did not return "
+                    "the expected 'contractAddress' field."
+                )
+
+            eligible = bool(data["verified"])
+            contract_address = str(data["contractAddress"])
+
+            return eligible, contract_address, None
+
+        except requests.exceptions.ConnectionError:
+            # Try the next local URL without exposing the noisy urllib3 traceback.
+            connection_errors.append(service_url)
+            continue
+
+        except requests.exceptions.Timeout:
+            return None, None, (
+                "The verification backend is running, but proof generation "
+                "timed out. Please try again."
+            )
+
+        except requests.exceptions.HTTPError as exc:
+            status_code = exc.response.status_code if exc.response is not None else "unknown"
+            return None, None, (
+                f"The verification backend returned HTTP {status_code}. "
+                "Check the backend terminal for the detailed server error."
+            )
+
+        except requests.exceptions.RequestException:
+            return None, None, (
+                "The verification request could not be completed. "
+                "Check that the Midnight verification service is running."
+            )
+
+        except ValueError:
+            return None, None, (
+                "The verification backend returned an invalid JSON response."
+            )
+
+    attempted = ", ".join(connection_errors)
+    return None, None, (
+        "Verification backend is offline. Start the Midnight HR verification "
+        f"service on port 4000, then try again. Tried: {attempted}"
+    )
 
 # If a card's View Profile link was clicked, load that profile.
 candidate_param = st.query_params.get("candidate")
@@ -281,8 +395,8 @@ st.markdown(
 
       .user-box {{
         position: absolute;
-        right: 92px;
-        top: 20px;
+        right: 96px;
+        top: 28px;
         color: white;
         text-align: right;
         line-height: 1.22;
@@ -294,7 +408,21 @@ st.markdown(
         font-weight: 500;
       }}
 
-      .header-dot {{
+      .header-photo {{
+        position: absolute;
+        right: 18px;
+        top: 9px;
+        width: 68px;
+        height: 68px;
+        border-radius: 50%;
+        object-fit: cover;
+        object-position: center;
+        background: {ORANGE};
+        border: 3px solid rgba(255,255,255,.85);
+        box-shadow: 0 3px 10px rgba(0,0,0,.12);
+      }}
+
+      .header-photo-fallback {{
         position: absolute;
         right: 18px;
         top: 9px;
@@ -302,6 +430,7 @@ st.markdown(
         height: 68px;
         border-radius: 50%;
         background: {ORANGE};
+        border: 3px solid rgba(255,255,255,.85);
       }}
 
       .content-wrap {{
@@ -561,6 +690,179 @@ st.markdown(
         text-align: right;
         font-size: 11px;
         line-height: 1.25;
+      }}
+
+      /* Buttons that truly live inside the candidate review card */
+      .review-top-actions {{
+        display: flex;
+        align-items: center;
+        justify-content: flex-end;
+      }}
+
+      .review-back-btn {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 32px;
+        padding: 0 12px;
+        border-radius: 7px;
+        border: 1px solid rgba(255,255,255,.55);
+        background: rgba(255,255,255,.10);
+        color: #FFFFFF !important;
+        text-decoration: none !important;
+        font-size: 11px;
+        font-weight: 800;
+      }}
+
+      .review-back-btn:hover {{
+        background: rgba(255,255,255,.18);
+        color: #FFFFFF !important;
+      }}
+
+      .review-inline-actions {{
+        display: flex;
+        justify-content: flex-end;
+        gap: 10px;
+        margin-top: 12px;
+        flex-wrap: wrap;
+      }}
+
+      .review-inline-btn {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 108px;
+        min-height: 38px;
+        padding: 0 16px;
+        border-radius: 8px;
+        text-decoration: none !important;
+        font-size: 12px;
+        font-weight: 800;
+        box-sizing: border-box;
+      }}
+
+      .review-inline-btn.reject {{
+        background: #FFFFFF;
+        color: #B34A43 !important;
+        border: 1px solid #E3B8B4;
+      }}
+
+      .review-inline-btn.reject:hover {{
+        background: #FFF5F3;
+        border-color: #C96E67;
+        color: #9F3E38 !important;
+      }}
+
+      .review-inline-btn.move {{
+        background: {ORANGE};
+        color: #FFFFFF !important;
+        border: 1px solid #E87525;
+      }}
+
+      .review-inline-btn.move:hover {{
+        background: {ORANGE_2};
+        border-color: {ORANGE_2};
+        color: #FFFFFF !important;
+      }}
+
+      .verify-inline-actions {{
+        display: flex;
+        justify-content: flex-start;
+        margin-top: 14px;
+      }}
+
+      .verify-inline-btn {{
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 38px;
+        padding: 0 18px;
+        border-radius: 8px;
+        background: {ORANGE};
+        color: #FFFFFF !important;
+        border: 1px solid #E87525;
+        text-decoration: none !important;
+        font-size: 12px;
+        font-weight: 800;
+      }}
+
+      .verify-inline-btn:hover {{
+        background: {ORANGE_2};
+        border-color: {ORANGE_2};
+        color: #FFFFFF !important;
+      }}
+
+      /* Proof generation loader — CSS lives here so no code is printed in Verify */
+      .proof-loading-wrap {{
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        padding: 18px 0 6px;
+      }}
+
+      .proof-loading-card {{
+        width: min(520px, 94%);
+        background: #FFFFFF;
+        border: 1px solid #E2E8EE;
+        border-radius: 14px;
+        padding: 26px 26px 22px;
+        text-align: center;
+        box-shadow: 0 10px 28px rgba(46,103,150,.08);
+      }}
+
+      .proof-loading-spinner {{
+        width: 34px;
+        height: 34px;
+        margin: 0 auto 15px;
+        border: 3px solid #E8EEF2;
+        border-top-color: #F89344;
+        border-radius: 50%;
+        animation: proof-spin .8s linear infinite;
+      }}
+
+      @keyframes proof-spin {{
+        to {{ transform: rotate(360deg); }}
+      }}
+
+      .proof-loading-title {{
+        color: #18344D;
+        font-size: 19px;
+        font-weight: 900;
+        margin-bottom: 5px;
+      }}
+
+      .proof-loading-step {{
+        color: #2E6796;
+        font-size: 12px;
+        font-weight: 800;
+        margin-top: 12px;
+      }}
+
+      .proof-loading-text {{
+        color: #6B7782;
+        font-size: 12px;
+        line-height: 1.55;
+        margin-top: 5px;
+      }}
+
+      .proof-progress-track {{
+        height: 7px;
+        margin-top: 18px;
+        border-radius: 999px;
+        background: #EDF2F5;
+        overflow: hidden;
+      }}
+
+      .proof-progress-fill {{
+        height: 100%;
+        border-radius: 999px;
+        background: #F89344;
+      }}
+
+      .proof-loading-note {{
+        color: #89949D;
+        font-size: 10px;
+        margin-top: 12px;
       }}
 
       .review-header {{
@@ -900,40 +1202,115 @@ st.markdown(
         min-height: 40px;
       }}
 
-      /* Candidate review actions — polished but still your blue/orange palette */
-      .st-key-verify_salary_btn button {{
+      /* Candidate review actions */
+      .st-key-verify_salary_btn,
+      .st-key-close_profile,
+      .st-key-reject_candidate,
+      .st-key-move_forward {{
+        margin-top: 10px;
+      }}
+
+      .st-key-verify_salary_btn button,
+      .st-key-close_profile button,
+      .st-key-reject_candidate button,
+      .st-key-move_forward button {{
+        width: 100% !important;
+        height: 42px !important;
+        min-height: 42px !important;
+        border-radius: 8px !important;
+        font-size: 13px !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
+        padding: 0 16px !important;
+        box-shadow: none !important;
+        transition: background .15s ease, border-color .15s ease, transform .15s ease !important;
+      }}
+
+      /* Verify + Move Forward = primary orange */
+      .st-key-verify_salary_btn button,
+      .st-key-move_forward button {{
         background: {ORANGE} !important;
         color: #FFFFFF !important;
         border: 1px solid #E87525 !important;
-        border-radius: 7px !important;
-        min-height: 42px !important;
-        box-shadow: 0 3px 8px rgba(248,147,68,.18) !important;
+      }}
+
+      .st-key-verify_salary_btn button:hover,
+      .st-key-move_forward button:hover {{
+        background: {ORANGE_2} !important;
+        color: #FFFFFF !important;
+        border-color: {ORANGE_2} !important;
+        transform: translateY(-1px);
+      }}
+
+      /* Back = quiet blue outline */
+      .st-key-close_profile button {{
+        background: #FFFFFF !important;
+        color: {BLUE} !important;
+        border: 1px solid #B8CAD8 !important;
+      }}
+
+      .st-key-close_profile button:hover {{
+        background: #F4F8FB !important;
+        color: #24577F !important;
+        border-color: {BLUE} !important;
+        transform: translateY(-1px);
+      }}
+
+      /* Reject = quiet red outline */
+      .st-key-reject_candidate button {{
+        background: #FFFFFF !important;
+        color: #B34A43 !important;
+        border: 1px solid #E3B8B4 !important;
+      }}
+
+      .st-key-reject_candidate button:hover {{
+        background: #FFF5F3 !important;
+        color: #9F3E38 !important;
+        border-color: #C96E67 !important;
+        transform: translateY(-1px);
+      }}
+
+      /* Remove Streamlit focus rings / black outlines on these actions */
+      .st-key-verify_salary_btn button:focus,
+      .st-key-close_profile button:focus,
+      .st-key-reject_candidate button:focus,
+      .st-key-move_forward button:focus {{
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(46, 103, 150, 0.10) !important;
+      }}
+
+      .st-key-verify_salary_btn {{
+        margin-top: 12px;
+        margin-bottom: 4px;
+      }}
+
+      .st-key-verify_salary_btn button {{
+        width: auto !important;
+        min-width: 190px !important;
+        min-height: 38px !important;
+        height: 38px !important;
+        padding: 0 18px !important;
+        border-radius: 8px !important;
+        background: {ORANGE} !important;
+        color: #FFFFFF !important;
+        border: 1px solid #E87525 !important;
+        box-shadow: none !important;
+        font-size: 12px !important;
+        font-weight: 800 !important;
+        line-height: 1 !important;
       }}
 
       .st-key-verify_salary_btn button:hover {{
         background: {ORANGE_2} !important;
         color: #FFFFFF !important;
+        border-color: {ORANGE_2} !important;
+        box-shadow: none !important;
+        transform: none !important;
       }}
 
-      .st-key-close_profile button {{
-        background: #FFFFFF !important;
-        color: {BLUE} !important;
-        border: 1px solid #BFD0DC !important;
-        border-radius: 7px !important;
-      }}
-
-      .st-key-reject_candidate button {{
-        background: #FFFFFF !important;
-        color: #B34A43 !important;
-        border: 1px solid #E6BEBB !important;
-        border-radius: 7px !important;
-      }}
-
-      .st-key-move_forward button {{
-        background: {ORANGE} !important;
-        color: #FFFFFF !important;
-        border: 1px solid #E87525 !important;
-        border-radius: 7px !important;
+      .st-key-verify_salary_btn button:focus {{
+        outline: none !important;
+        box-shadow: 0 0 0 3px rgba(248, 147, 68, 0.14) !important;
       }}
 
       @media (max-width: 760px) {{
@@ -990,14 +1367,20 @@ st.markdown(
 # -----------------------------
 # Header
 # -----------------------------
+james_header_photo = (
+    f'<img class="header-photo" src="{JAMES_PHOTO}" alt="James Al Ghul">'
+    if JAMES_PHOTO
+    else '<div class="header-photo-fallback"></div>'
+)
+
 st.html(
-    """
+    f"""
     <div class="topbar">
       <div class="user-box">
         <strong>James Al Ghul</strong>
         HR Leader
       </div>
-      <div class="header-dot"></div>
+      {james_header_photo}
     </div>
     """
 )
@@ -1011,14 +1394,14 @@ if st.session_state.selected_candidate is None:
         """
         <div class="company-title">
           <div class="company-name">Northstar People Co.</div>
-          <div class="company-subtitle">Candidate Data · Privacy-Preserving Policy Checks</div>
+          <div class="company-subtitle">Talent Review Dashboard</div>
         </div>
         """
     )
 
 # When a candidate profile is open, hide the candidate list.
 if st.session_state.selected_candidate is None:
-    tool_a, tool_b, tool_c = st.columns([5.0, 1.55, 1.15], gap="small")
+    tool_a, tool_b, tool_c = st.columns([4.8, 1.45, 1.55], gap="small")
 
     # Long text field first
     with tool_a:
@@ -1107,6 +1490,25 @@ if st.session_state.selected_candidate is not None:
     )
 
     if selected:
+        review_action = st.query_params.get("action")
+
+        if review_action == "back":
+            st.session_state.selected_candidate = None
+            st.query_params.clear()
+            st.rerun()
+
+        if review_action == "reject":
+            st.session_state.selected_candidate = None
+            st.query_params.clear()
+            st.toast(f"{selected['name']} marked as rejected. (Mock)", icon="🗂️")
+            st.rerun()
+
+        if review_action == "move":
+            st.session_state.selected_candidate = None
+            st.query_params.clear()
+            st.toast(f"{selected['name']} reviewed and moved forward.", icon="✅")
+            st.rerun()
+
         active_tab = st.query_params.get("tab", "application")
         if active_tab not in {"application", "resume", "evaluation", "attachment", "verify"}:
             active_tab = "application"
@@ -1114,6 +1516,97 @@ if st.session_state.selected_candidate is not None:
         privacy_mode = st.query_params.get("privacy", "midnight")
         if privacy_mode not in {"before", "midnight"}:
             privacy_mode = "midnight"
+
+        if st.query_params.get("action") == "verify_salary":
+            proof_loading = st.empty()
+
+            def render_proof_loading(step_title, step_text, progress):
+                # Use real HTML rendering, NOT markdown.
+                # This prevents Streamlit from ever showing the HTML/CSS source as code.
+                proof_loading.html(
+                    f"""
+                    <div class="proof-loading-wrap">
+                      <div class="proof-loading-card">
+                        <div class="proof-loading-spinner"></div>
+                        <div class="proof-loading-title">Generating proof</div>
+                        <div class="proof-loading-step">{step_title}</div>
+                        <div class="proof-loading-text">{step_text}</div>
+
+                        <div class="proof-progress-track">
+                          <div class="proof-progress-fill" style="width:{progress}%"></div>
+                        </div>
+
+                        <div class="proof-loading-note">
+                          Candidate salary remains confidential. Company budget is public.
+                        </div>
+                      </div>
+                    </div>
+                    """
+                )
+
+            render_proof_loading(
+                "Step 1 of 3",
+                "Reading the candidate's confidential salary commitment...",
+                33,
+            )
+            time.sleep(0.35)
+
+            render_proof_loading(
+                "Step 2 of 3",
+                f"Comparing it against the public company budget of ${selected['budget_max']:,}...",
+                66,
+            )
+            time.sleep(0.35)
+
+            render_proof_loading(
+                "Step 3 of 3",
+                "Submitting the verification request and waiting for the Midnight result...",
+                92,
+            )
+
+            # Real backend verification:
+            # POST /verify with candidateId + PUBLIC budget.
+            eligible, contract_address, verification_error = make_proof(selected)
+
+            if verification_error is not None:
+                proof_loading.empty()
+
+                # Remove the action parameter so refresh does not keep retrying.
+                st.query_params.clear()
+                st.query_params["candidate"] = str(selected["id"])
+                st.query_params["tab"] = "verify"
+                st.query_params["privacy"] = privacy_mode
+
+                st.error(verification_error)
+                st.info(
+                    "The dashboard is ready. Once the Midnight HR backend is "
+                    "running on port 4000, click Verify salary eligibility again."
+                )
+                st.stop()
+
+            st.session_state.verification_results[selected["id"]] = {
+                "eligible": eligible,
+                "contract_address": contract_address,
+            }
+
+            st.session_state.status_overrides[selected["id"]] = (
+                "Verified" if eligible else "Review Needed"
+            )
+
+            render_proof_loading(
+                "Complete",
+                "Verification complete. Loading the result...",
+                100,
+            )
+            time.sleep(0.20)
+
+            proof_loading.empty()
+
+            st.query_params.clear()
+            st.query_params["candidate"] = str(selected["id"])
+            st.query_params["tab"] = "verify"
+            st.query_params["privacy"] = privacy_mode
+            st.rerun()
 
         within_budget = selected["salary_expectation"] <= selected["budget_max"]
 
@@ -1131,7 +1624,7 @@ if st.session_state.selected_candidate is not None:
             ("resume", "Resume"),
             ("evaluation", "Evaluation"),
             ("attachment", "Attachments"),
-            ("verify", "Compensation"),
+            ("verify", "Verify"),
         ]
 
         tabs_html = "".join(
@@ -1144,13 +1637,13 @@ if st.session_state.selected_candidate is not None:
             if privacy_mode == "before":
                 compensation_html = f"""
                   <div class="privacy-box">
-                    <div class="privacy-title">Compensation Check — Before (no privacy)</div>
+                    <div class="privacy-title">Compensation Check — Before</div>
                     <div class="privacy-row">
                       <span>Candidate salary</span>
                       <span>${selected["salary_expectation"]:,}</span>
                     </div>
                     <div class="privacy-row">
-                      <span>Approved budget</span>
+                      <span>Company budget</span>
                       <span>${selected["budget_max"]:,}</span>
                     </div>
                     <div class="privacy-row">
@@ -1160,17 +1653,24 @@ if st.session_state.selected_candidate is not None:
                       </span>
                     </div>
                   </div>
+
+                  <div class="review-inline-actions">
+                    <a class="review-inline-btn reject"
+                       href="?candidate={selected["id"]}&tab={active_tab}&privacy={privacy_mode}&action=reject">Reject</a>
+                    <a class="review-inline-btn move"
+                       href="?candidate={selected["id"]}&tab={active_tab}&privacy={privacy_mode}&action=move">Move Forward</a>
+                  </div>
                 """
             else:
                 compensation_html = f"""
                   <div class="privacy-box">
-                    <div class="privacy-title">Compensation Policy Check — via Midnight</div>
+                    <div class="privacy-title">Compensation Check — With Midnight</div>
                     <div class="privacy-row">
                       <span>Candidate salary</span>
-                      <span class="private-tag">🔒 Private (never leaves HR system)</span>
+                      <span class="private-tag">🔒 Private</span>
                     </div>
                     <div class="privacy-row">
-                      <span>Approved budget (public input)</span>
+                      <span>Company budget <span style="color:#7A8791;font-size:10px;">(public)</span></span>
                       <span>${selected["budget_max"]:,}</span>
                     </div>
                     <div class="privacy-row">
@@ -1180,12 +1680,16 @@ if st.session_state.selected_candidate is not None:
                       </span>
                     </div>
                   </div>
+
+                  <div class="review-inline-actions">
+                    <a class="review-inline-btn reject"
+                       href="?candidate={selected["id"]}&tab={active_tab}&privacy={privacy_mode}&action=reject">Reject</a>
+                    <a class="review-inline-btn move"
+                       href="?candidate={selected["id"]}&tab={active_tab}&privacy={privacy_mode}&action=move">Move Forward</a>
+                  </div>
                 """
 
             content_html = f"""
-              <div style="font-size:10px;font-weight:800;color:#6B7782;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
-                Standard HR Record — plain data, not cryptographically verified
-              </div>
               <h3>Application Overview</h3>
               <div class="review-grid">
                 <div class="review-field"><b>Position</b><br>{selected["position"]}</div>
@@ -1200,18 +1704,12 @@ if st.session_state.selected_candidate is not None:
                 {selected["summary"]}
               </div>
 
-              <div style="margin-top:22px;padding-top:16px;border-top:2px dashed #C9D3DA;">
-                <div style="font-size:10px;font-weight:800;color:#2E6796;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
-                  🔒 Midnight-Verified Claim
-                </div>
-                {compensation_html}
-              </div>
+              {compensation_html}
             """
 
         elif active_tab == "resume":
             content_html = f"""
               <h3>Resume</h3>
-
               <div class="review-resume-line"><b>Professional experience:</b> {selected["experience"]}</div>
               <div class="review-resume-line"><b>Core skills:</b> {", ".join(selected["skills"])}</div>
               <div class="review-resume-line"><b>Current location:</b> {selected["location"]}</div>
@@ -1253,7 +1751,7 @@ if st.session_state.selected_candidate is not None:
                           The actual salary remains hidden.
                         </div>
                         <div style="margin-top:8px;font-size:10px;color:#2E6796;font-family:monospace;">
-                          Proof ID: {result["proof_id"]}
+                          Contract address: {result["contract_address"]}
                         </div>
                       </div>
                     """
@@ -1266,18 +1764,25 @@ if st.session_state.selected_candidate is not None:
                           The actual salary remains hidden.
                         </div>
                         <div style="margin-top:8px;font-size:10px;color:#2E6796;font-family:monospace;">
-                          Proof ID: {result["proof_id"]}
+                          Contract address: {result["contract_address"]}
                         </div>
                       </div>
                     """
 
             content_html = f"""
-              <h3>Compensation Policy Check</h3>
+              <h3>Verify</h3>
               <div style="font-size:12px;color:#5F6B76;line-height:1.6;">
-                This checks one policy — whether compensation fits the approved budget —
-                without revealing the candidate's private salary. It does not verify
-                the rest of this candidate's application.
+                Verify salary eligibility against company policy without revealing
+                the candidate's private salary expectation.
               </div>
+
+              <div class="verify-inline-actions">
+                <a class="verify-inline-btn"
+                   href="?candidate={selected["id"]}&tab=verify&privacy={privacy_mode}&action=verify_salary">
+                  Verify salary eligibility
+                </a>
+              </div>
+
               {result_html}
             """
 
@@ -1289,7 +1794,10 @@ if st.session_state.selected_candidate is not None:
                   <div class="review-company">Northstar People Co.</div>
                   <div class="review-company-sub">Candidate Review</div>
                 </div>
-                <div class="review-user"></div>
+                <div class="review-top-actions">
+                  <a class="review-back-btn"
+                     href="?candidate={selected["id"]}&action=back">← Back to Candidates</a>
+                </div>
               </div>
 
               <div class="review-header">
@@ -1321,65 +1829,10 @@ if st.session_state.selected_candidate is not None:
                   <div class="decision-row">Suggested next step<strong>Interview</strong></div>
                   <div class="decision-row">Overall score<strong>8.5 / 10</strong></div>
                 </div>
-              </div>            </div>
+              </div>
+            </div>
             """
         )
 
-        if active_tab == "verify":
-            verify_col, _ = st.columns([1.45, 2.55])
 
-            with verify_col:
-                if st.button(
-                    "Verify salary eligibility",
-                    key="verify_salary_btn",
-                    type="primary",
-                    use_container_width=True,
-                ):
-                    with st.status("Generating proof...", expanded=True) as status:
-                        st.write("Reading private salary commitment...")
-                        time.sleep(0.45)
-                        st.write("Comparing against company salary policy...")
-                        time.sleep(0.45)
-                        st.write("Finalizing proof...")
-                        time.sleep(0.45)
-
-                        eligible, proof_id = make_proof(selected)
-
-                        st.session_state.verification_results[selected["id"]] = {
-                            "eligible": eligible,
-                            "proof_id": proof_id,
-                        }
-                        st.session_state.status_overrides[selected["id"]] = (
-                            "Compensation ✓ Cleared" if eligible else "Compensation ✗ Over Budget"
-                        )
-
-                        status.update(
-                            label="Proof generated",
-                            state="complete",
-                            expanded=False,
-                        )
-
-                    st.rerun()
-
-        back_col, reject_col, move_col = st.columns([1.2, 0.8, 1.0])
-
-        with back_col:
-            if st.button("← Back to Candidates", key="close_profile"):
-                st.session_state.selected_candidate = None
-                st.query_params.clear()
-                st.rerun()
-
-        with reject_col:
-            if st.button("Reject", key="reject_candidate"):
-                st.session_state.selected_candidate = None
-                st.query_params.clear()
-                st.toast(f"{selected['name']} marked as rejected. (Mock)", icon="🗂️")
-                st.rerun()
-
-        with move_col:
-            if st.button("Move Forward", key="move_forward"):
-                st.session_state.selected_candidate = None
-                st.query_params.clear()
-                st.toast(f"{selected['name']} reviewed and moved forward.", icon="✅")
-                st.rerun()
 
