@@ -7,7 +7,7 @@ import streamlit as st
 HR_SERVICE_URL = "http://localhost:4000"
 
 st.set_page_config(
-    page_title="HR Candidate Dashboard",
+    page_title="HR Policy Verification",
     page_icon="👥",
     layout="wide",
     initial_sidebar_state="collapsed"
@@ -56,7 +56,7 @@ CANDIDATES = [
         "name": "Ava Martinez",
         "phone": "0995 920 122",
         "position": "Software Engineer",
-        "status": "Awaiting Verification",
+        "status": "Compensation \u2022 Pending",
         "email": "ava.martinez@example.com",
         "experience": "4 years",
         "skills": ["Python", "JavaScript", "REST APIs"],
@@ -72,7 +72,7 @@ CANDIDATES = [
         "name": "Noah Bennett",
         "phone": "0917 381 440",
         "position": "UI/UX Designer",
-        "status": "Verified",
+        "status": "Compensation \u2713 Cleared",
         "email": "noah.bennett@example.com",
         "experience": "5 years",
         "skills": ["Figma", "Prototyping", "UX Research"],
@@ -88,7 +88,7 @@ CANDIDATES = [
         "name": "Mia Santos",
         "phone": "0998 613 725",
         "position": "Data Analyst",
-        "status": "Awaiting Verification",
+        "status": "Compensation \u2022 Pending",
         "email": "mia.santos@example.com",
         "experience": "3 years",
         "skills": ["SQL", "Python", "Tableau"],
@@ -104,7 +104,7 @@ CANDIDATES = [
         "name": "Liam Cruz",
         "phone": "0927 455 810",
         "position": "Frontend Developer",
-        "status": "Verified",
+        "status": "Compensation \u2713 Cleared",
         "email": "liam.cruz@example.com",
         "experience": "4 years",
         "skills": ["React", "TypeScript", "CSS"],
@@ -120,7 +120,7 @@ CANDIDATES = [
         "name": "Sophia Reyes",
         "phone": "0918 244 663",
         "position": "HR Specialist",
-        "status": "Awaiting Verification",
+        "status": "Compensation \u2022 Pending",
         "email": "sophia.reyes@example.com",
         "experience": "6 years",
         "skills": ["Recruiting", "Onboarding", "HRIS"],
@@ -136,7 +136,7 @@ CANDIDATES = [
         "name": "Ethan Lim",
         "phone": "0997 503 219",
         "position": "Backend Developer",
-        "status": "Verified",
+        "status": "Compensation \u2713 Cleared",
         "email": "ethan.lim@example.com",
         "experience": "5 years",
         "skills": ["Python", "Django", "PostgreSQL"],
@@ -152,7 +152,7 @@ CANDIDATES = [
         "name": "Isabella Flores",
         "phone": "0916 774 390",
         "position": "Product Manager",
-        "status": "Verified",
+        "status": "Compensation \u2713 Cleared",
         "email": "isabella.flores@example.com",
         "experience": "7 years",
         "skills": ["Product Strategy", "Agile", "Roadmaps"],
@@ -168,7 +168,7 @@ CANDIDATES = [
         "name": "Gabriel Tan",
         "phone": "0928 618 502",
         "position": "QA Engineer",
-        "status": "Awaiting Verification",
+        "status": "Compensation \u2022 Pending",
         "email": "gabriel.tan@example.com",
         "experience": "4 years",
         "skills": ["Selenium", "Playwright", "API Testing"],
@@ -184,7 +184,7 @@ CANDIDATES = [
         "name": "Chloe Navarro",
         "phone": "0991 325 447",
         "position": "Marketing Specialist",
-        "status": "Verified",
+        "status": "Compensation \u2713 Cleared",
         "email": "chloe.navarro@example.com",
         "experience": "3 years",
         "skills": ["Content", "Analytics", "Campaigns"],
@@ -1011,7 +1011,7 @@ if st.session_state.selected_candidate is None:
         """
         <div class="company-title">
           <div class="company-name">Northstar People Co.</div>
-          <div class="company-subtitle">Talent Review Dashboard</div>
+          <div class="company-subtitle">Candidate Data · Privacy-Preserving Policy Checks</div>
         </div>
         """
     )
@@ -1131,7 +1131,7 @@ if st.session_state.selected_candidate is not None:
             ("resume", "Resume"),
             ("evaluation", "Evaluation"),
             ("attachment", "Attachments"),
-            ("verify", "Verify"),
+            ("verify", "Compensation"),
         ]
 
         tabs_html = "".join(
@@ -1144,13 +1144,13 @@ if st.session_state.selected_candidate is not None:
             if privacy_mode == "before":
                 compensation_html = f"""
                   <div class="privacy-box">
-                    <div class="privacy-title">Compensation Check — Before</div>
+                    <div class="privacy-title">Compensation Check — Before (no privacy)</div>
                     <div class="privacy-row">
                       <span>Candidate salary</span>
                       <span>${selected["salary_expectation"]:,}</span>
                     </div>
                     <div class="privacy-row">
-                      <span>Company budget</span>
+                      <span>Approved budget</span>
                       <span>${selected["budget_max"]:,}</span>
                     </div>
                     <div class="privacy-row">
@@ -1164,14 +1164,14 @@ if st.session_state.selected_candidate is not None:
             else:
                 compensation_html = f"""
                   <div class="privacy-box">
-                    <div class="privacy-title">Compensation Check — With Midnight</div>
+                    <div class="privacy-title">Compensation Policy Check — via Midnight</div>
                     <div class="privacy-row">
                       <span>Candidate salary</span>
-                      <span class="private-tag">🔒 Private</span>
+                      <span class="private-tag">🔒 Private (never leaves HR system)</span>
                     </div>
                     <div class="privacy-row">
-                      <span>Company budget</span>
-                      <span class="private-tag">🔒 Private</span>
+                      <span>Approved budget (public input)</span>
+                      <span>${selected["budget_max"]:,}</span>
                     </div>
                     <div class="privacy-row">
                       <span>Result</span>
@@ -1183,6 +1183,9 @@ if st.session_state.selected_candidate is not None:
                 """
 
             content_html = f"""
+              <div style="font-size:10px;font-weight:800;color:#6B7782;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+                Standard HR Record — plain data, not cryptographically verified
+              </div>
               <h3>Application Overview</h3>
               <div class="review-grid">
                 <div class="review-field"><b>Position</b><br>{selected["position"]}</div>
@@ -1197,12 +1200,18 @@ if st.session_state.selected_candidate is not None:
                 {selected["summary"]}
               </div>
 
-              {compensation_html}
+              <div style="margin-top:22px;padding-top:16px;border-top:2px dashed #C9D3DA;">
+                <div style="font-size:10px;font-weight:800;color:#2E6796;text-transform:uppercase;letter-spacing:1px;margin-bottom:10px;">
+                  🔒 Midnight-Verified Claim
+                </div>
+                {compensation_html}
+              </div>
             """
 
         elif active_tab == "resume":
             content_html = f"""
               <h3>Resume</h3>
+
               <div class="review-resume-line"><b>Professional experience:</b> {selected["experience"]}</div>
               <div class="review-resume-line"><b>Core skills:</b> {", ".join(selected["skills"])}</div>
               <div class="review-resume-line"><b>Current location:</b> {selected["location"]}</div>
@@ -1263,10 +1272,11 @@ if st.session_state.selected_candidate is not None:
                     """
 
             content_html = f"""
-              <h3>Verify</h3>
+              <h3>Compensation Policy Check</h3>
               <div style="font-size:12px;color:#5F6B76;line-height:1.6;">
-                Verify salary eligibility against company policy without revealing
-                the candidate's private salary expectation.
+                This checks one policy — whether compensation fits the approved budget —
+                without revealing the candidate's private salary. It does not verify
+                the rest of this candidate's application.
               </div>
               {result_html}
             """
@@ -1340,7 +1350,7 @@ if st.session_state.selected_candidate is not None:
                             "proof_id": proof_id,
                         }
                         st.session_state.status_overrides[selected["id"]] = (
-                            "Verified" if eligible else "Review Needed"
+                            "Compensation ✓ Cleared" if eligible else "Compensation ✗ Over Budget"
                         )
 
                         status.update(
