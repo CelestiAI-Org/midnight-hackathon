@@ -30,7 +30,7 @@ Approved budget:  $95,000
 Result:           VERIFIED
 ```
 
-But the verifier only needs:
+But, the verifier only needs:
 
 ```text
 Candidate: Candidate 1
