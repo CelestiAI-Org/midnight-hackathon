@@ -10,7 +10,7 @@ The system allows a recruiter or hiring manager to answer questions such as:
 
 without revealing the candidate's actual salary.
 
-The salary remains private to the HR verification service and is supplied to the Midnight circuit as a **private witness**. The circuit evaluates the policy and exposes only the verification result.
+The salary remains private to the HR verification service and is supplied to the Midnight circuit as a **private witness**. The circuit evaluates the policy and discloses only the boolean result.
 
 **Private data in. → Zero-knowledge verification. → Simple result out.**
 
@@ -40,15 +40,9 @@ Result:    VERIFIED
 
 The exact salary is unnecessary exposure.
 
-### The goal
-
-Allow someone to verify a claim **without giving them the underlying sensitive information**.
-
 ---
 
 ## How It Works
-
-At a high level:
 
 ```text
 ┌──────────────────────┐
@@ -58,28 +52,32 @@ At a high level:
 │  Approved Budget     │
 └──────────┬───────────┘
            │
-           │ POST /verify
+           │ POST /verify   (candidateId, budget — no salary)
            ▼
 ┌──────────────────────┐
-│   HR Node Service    │
+│   HR Node Service     │
+│  hr-cli/src/server.ts │
 │                      │
-│  Candidate database  │
-│  Private salary      │
+│  Candidate → salary  │
+│  map (server-side)   │
 │  Midnight wallet     │
 └──────────┬───────────┘
            │
-           │ Private witness
+           │ salary supplied as private witness
            ▼
 ┌──────────────────────┐
-│   Midnight Circuit   │
+│   Midnight Circuit    │
+│  (via api/ HRAPI)     │
 │                      │
-│ salary <= budget ?   │
+│ verified =           │
+│   disclose(          │
+│     salary<=budget)  │
 └──────────┬───────────┘
            │
-           │ ZK proof / result
+           │ ledger write, then read back
            ▼
 ┌──────────────────────┐
-│    Verification      │
+│   Verification result │
 │                      │
 │  VERIFIED             │
 │  or                   │
@@ -87,65 +85,40 @@ At a high level:
 └──────────────────────┘
 ```
 
-The critical boundary is between **public inputs** and the **private witness**.
-
 ### Public
-
-The verifier provides:
 
 - Candidate ID
 - Approved salary budget
 
 ### Private
 
-The HR service provides:
-
-- Candidate salary
-
-The salary is used during private circuit execution and is **not sent to the Streamlit frontend**.
+- Candidate salary — held only in the Node service, never sent to Streamlit or over `POST /verify`
 
 ---
 
 ## The Midnight Circuit
 
-The core verification logic is intentionally simple:
+`contract/src/hr-verification.compact`:
 
 ```compact
-witness candidateSalary(): Uint<0..2^32>
+pragma language_version 0.23;
 
-circuit verifySalary(
-    budget: Uint<0..2^32>
-): Boolean {
+import CompactStandardLibrary;
+
+export ledger verified: Boolean;
+
+witness candidateSalary(): Uint<32>;
+
+export circuit verifySalary(budget: Uint<32>): [] {
     const salary = candidateSalary();
-    return disclose(salary <= budget);
+    verified = disclose(salary <= budget);
 }
 ```
 
-The important operation is:
+Two things worth understanding here, since they weren't obvious to us at first either:
 
-```text
-salary <= budget
-```
-
-The circuit does **not** disclose:
-
-```text
-salary
-```
-
-It discloses only the result:
-
-```text
-TRUE
-```
-
-or
-
-```text
-FALSE
-```
-
-For example:
+- **`export ledger verified: Boolean;` is necessary, not decorative.** Circuit return values aren't retrievable off-chain in Midnight — the only way a DApp can read back an outcome after a transaction is by querying ledger state. Without this field, `verifySalary` would run and produce a valid proof, but there'd be no way for anyone to find out whether it passed.
+- **`disclose()` wraps only the comparison result, never `salary`.** The salary is read via the `candidateSalary()` witness, used inside the boolean expression, and then discarded — it's never assigned to `verified` or written anywhere.
 
 ```text
 PRIVATE                     PUBLIC
@@ -154,305 +127,165 @@ Candidate salary            Approved budget
      $88,000                    $95,000
         │                          │
         └──────────┬───────────────┘
-                   │
-                   ▼
+                    │
+                    ▼
              salary <= budget
-                   │
-                   ▼
-                 TRUE
-                   │
-                   ▼
-              VERIFIED
+                    │
+                    ▼
+                  TRUE
+                    │
+                    ▼
+        written to ledger.verified
+                    │
+                    ▼
+              read back → VERIFIED
 ```
-
-The verifier can establish that the salary satisfies the policy without being given the salary itself.
 
 ---
 
-## Why This Matters
+## Known limitation: one-sided check only
 
-This changes the model from:
-
-> **"Give me the data so I can verify it."**
-
-to:
-
-> **"Prove to me that the condition is true without giving me the data."**
-
-That's the core privacy property this prototype demonstrates.
-
-The same idea can apply anywhere a party needs to verify a condition over sensitive information without needing access to the information itself.
+The contract proves `salary <= budget` — a single threshold. It does **not** currently support a two-sided range check (`min <= salary <= max`), even though the demo's mock candidate data includes both a `budget_min` and `budget_max`. Only `budget_max` is used in the real on-chain check. A two-sided version would need a second comparison in the circuit; treat this as a stated roadmap item, not a hidden gap.
 
 ---
 
 ## Architecture
 
-### Streamlit Frontend
+### `contract/`
+The Compact contract and its generated TypeScript bindings (`contract/src/managed/`, generated by `npm run compact` — don't hand-edit).
 
-The Streamlit application provides the verifier-facing interface.
+### `api/`
+`HRAPI` (`api/src/index.ts`) — the deploy/join/verifySalary application layer that wraps Midnight's providers (wallet, proof, indexer) around the compiled contract.
 
-The user can select a candidate and provide an approved salary budget.
+### `hr-cli/`
+Two entry points:
+- `src/index.ts` — the interactive CLI demo (candidate and employer roles in one terminal, useful for testing the raw flow)
+- `src/server.ts` — an HTTP wrapper around `HRAPI`, boots the same wallet/provider stack non-interactively, exposes `POST /verify`. This is what the Streamlit frontend talks to.
 
-The frontend **does not receive the candidate's salary**.
-
-It communicates with the backend through HTTP.
-
-```text
-Streamlit
-    │
-    │ POST /verify
-    ▼
-HR Node Service
-```
-
-### HR Verification Service
-
-`hr-cli/src/server.ts` provides the HTTP interface between the frontend and the Midnight verification system.
-
-It is responsible for:
-
-- receiving verification requests,
-- accessing private candidate information,
-- providing the salary as a witness,
-- interacting with the Midnight wallet and network,
-- constructing/executing the verification,
-- and returning the result.
-
-Keeping this service separate from the frontend prevents the sensitive witness from needing to cross into the UI layer.
-
-### Midnight Contract
-
-The Compact contract contains the privacy-preserving verification logic.
-
-Its core question is:
+### `app.py`
+Streamlit HR dashboard UI. Calls the Node service over HTTP; never touches the salary itself.
 
 ```text
-Is candidateSalary <= budget?
+midnight-hack/
+├── app.py                          # Streamlit frontend
+├── requirements.txt
+├── contract/
+│   └── src/
+│       ├── hr-verification.compact
+│       └── witnesses.ts
+├── api/
+│   └── src/
+│       ├── index.ts                # HRAPI
+│       └── common-types.ts
+├── hr-cli/
+│   └── src/
+│       ├── index.ts                # interactive CLI
+│       └── server.ts               # HTTP service for Streamlit
+└── .venv/                          # Python virtual environment
 ```
-
-The salary remains private while the verification result is disclosed.
-
----
-
-## Privacy Model
-
-The intended data flow is:
-
-```text
-                PRIVATE
-                   │
-                   ▼
-          Candidate salary
-                   │
-                   ▼
-          HR Node Service
-                   │
-                   │ witness
-                   ▼
-          Midnight Circuit
-                   │
-                   │
-                   ▼
-              TRUE / FALSE
-                   │
-                   │ public result
-                   ▼
-             Streamlit UI
-```
-
-The frontend should never receive the raw salary.
-
-Likewise, the verification response should contain the policy result rather than the sensitive underlying value.
-
-This means the privacy property is architectural, not simply a UI decision.
-
----
-
-## Example
-
-Assume the private HR data contains:
-
-```text
-Candidate 1 → $88,000
-Candidate 7 → $110,000
-```
-
-A verifier submits:
-
-```yaml
-Candidate: Candidate 1
-Budget:    $95,000
-```
-
-The system returns:
-
-```text
-VERIFIED
-```
-
-The verifier does not need to learn that the salary is `$88,000`.
-
-For another candidate:
-
-```yaml
-Candidate: Candidate 7
-Budget:    $100,000
-```
-
-The system returns:
-
-```text
-NOT VERIFIED
-```
-
-Again, the verifier only learns the result of the policy check.
 
 ---
 
 ## Running the Project
 
-The MVP consists of two application processes:
-
-1. **Midnight HR verification service**
-2. **Streamlit frontend**
-
-### 1. Start the HR service
+### One-time setup
 
 ```bash
-cd ~/Projects/midnight-hack/hr-cli
+npm install
+
+cd contract
+npm run compact   # compiles the Compact contract
+npm run build
+cd ..
+
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Every time you want to run it
+
+**1. Start the HR verification service:**
+```bash
+cd hr-cli
 npm run server
 ```
 
-The service should report that it is listening on its configured HTTP port.
+This single command starts everything the service needs — it spins up its own local Midnight node, indexer, and proof server via testcontainers automatically (you do **not** need to separately run `docker compose -f proof-server-local.yml up -d` for this flow; that file is unused by `npm run server`).
 
-### 2. Start the Streamlit frontend
+**Cold start takes real time** — typically 2-5 minutes, since the proof server has to download its proving/verifying keys from S3 fresh on every run, nothing is cached between runs. Wait for:
+```
+HR verification service listening on http://localhost:4000
+```
+before moving on. Once it's up, **leave it running** for the rest of your session — restarting pays the full cold-start cost again.
 
-From the repository root:
-
+**2. Start the Streamlit frontend**, in a separate terminal:
 ```bash
-cd ~/Projects/midnight-hack
 source .venv/bin/activate
 streamlit run app.py
 ```
 
-The Python virtual environment keeps the frontend dependencies isolated from the system Python installation.
-
-> **Note:** The Midnight development/test infrastructure and required services must also be running according to the project's development environment.
-
----
-
-## Repository Structure
-
-```text
-midnight-hack/
-├── app.py                  # Streamlit frontend
-├── hr-cli/
-│   ├── src/
-│   │   └── server.ts       # HR verification API
-│   └── ...
-├── .venv/                  # Python virtual environment
-└── ...
+**3. Sanity-check the service directly before touching the UI:**
+```bash
+curl http://localhost:4000/health
+curl -X POST http://localhost:4000/verify -H "Content-Type: application/json" -d '{"candidateId": 1, "budget": 95000}'
 ```
 
 ---
 
 ## What This Prototype Demonstrates
 
-This MVP demonstrates:
+- Private candidate information, never transmitted to the frontend
+- Public verification criteria (candidate ID, budget)
+- A private witness feeding a ZK circuit
+- Selective disclosure of only the boolean result, via a ledger write
+- Frontend/backend separation as an architectural privacy boundary, not just a UI convention
+- Midnight + Compact integration end-to-end: contract → witness → API → HTTP service → UI
 
-- **Private candidate information**
-- **Public verification criteria**
-- **Private witnesses**
-- **Zero-knowledge verification**
-- **Selective disclosure of results**
-- **Frontend/backend separation**
-- **Midnight + Compact integration**
-
-The current policy is intentionally simple:
+The current policy is intentionally narrow:
 
 ```text
 candidate salary <= approved budget
 ```
 
-But the architecture can be extended to more complex policies.
-
-For example:
-
-```text
-salary within approved range
-candidate satisfies a compensation band
-candidate meets a minimum experience requirement
-candidate satisfies a department-specific policy
-```
-
-The underlying principle remains the same:
-
-> **Reveal the result of a computation without revealing all of the data used to perform it.**
-
----
-
-## Why HR?
-
-HR is a useful demonstration of this technology because many HR decisions are fundamentally **policy checks over sensitive data**.
-
-A verifier might need to establish:
-
-```text
-Does the candidate satisfy the policy?
-```
-
-without necessarily needing:
-
-```text
-What is the candidate's exact salary?
-What is their full compensation?
-What other private information do they have?
-```
-
-Zero-knowledge proofs provide a mechanism for separating those two questions.
+The architecture generalizes to other policy checks over sensitive data (experience thresholds, compensation bands, eligibility criteria) — this MVP implements one such policy as a concrete proof of the pattern, not the limit of it.
 
 ---
 
 ## Project Status
 
-**Hackathon MVP / prototype**
+**Hackathon MVP / prototype.**
 
-The current implementation focuses on demonstrating the privacy-preserving verification flow rather than providing a production-ready HR platform.
+This demonstrates the privacy-preserving verification flow, not a production-ready HR platform. Not included, and known to be missing:
 
-A production implementation would require additional work around:
+- authentication and authorization
+- secure candidate-data storage (the Node service currently holds salaries in a hardcoded in-memory map)
+- key management
+- access control / query-rate limiting (see privacy note below)
+- audit logging
+- production deployment
+- two-sided range checks
+- persistence of deployed contracts across service restarts
 
-- authentication and authorisation,
-- secure candidate-data storage,
-- key management,
-- access control,
-- audit logging,
-- production deployment,
-- error handling,
-- privacy threat modelling,
-- and integration with existing HR systems.
+### A real privacy limitation worth stating honestly
+
+Zero-knowledge proofs hide the value used in a single check, but they don't prevent someone from narrowing down the salary through *repeated* queries at different budget thresholds (`salary <= 50000?`, `salary <= 60000?`, ...). A production system would need query authorization/rate-limiting on top of the cryptographic mechanism — this MVP demonstrates the mechanism, not that additional layer.
 
 ---
 
 ## Tech Stack
 
-- **Midnight**
-- **Compact**
-- **Zero-knowledge proofs**
-- **TypeScript / Node.js**
-- **Streamlit**
-- **Python**
-- **Docker / Midnight development infrastructure**
+- Midnight, Compact
+- TypeScript / Node.js (contract, API, CLI, HTTP service)
+- Streamlit / Python (frontend)
+- Docker (local Midnight test environment, via testcontainers)
 
 ---
 
 ## Core Idea
 
-Traditional verification asks:
+Traditional verification asks: *"Can I see the data so I can verify it?"*
 
-> **"Can I see the data so I can verify it?"**
-
-Privacy-preserving verification asks:
-
-> **"Can you prove the claim without showing me the data?"**
+Privacy-preserving verification asks: *"Can you prove the claim without showing me the data?"*
 
 That's what this project demonstrates with Midnight.

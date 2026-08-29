@@ -21,7 +21,7 @@ import { levelPrivateStateProvider } from '@midnight-ntwrk/midnight-js-level-pri
 import { StandaloneConfig } from './config.js';
 import { MidnightWalletProvider } from './midnight-wallet-provider';
 import { unshieldedToken } from '@midnight-ntwrk/midnight-js-protocol/ledger';
-import { waitForUnshieldedFunds } from './wallet-utils';
+import { waitForUnshieldedFunds, syncWallet } from './wallet-utils';
 import { HRPrivateState } from '../../contract/src/witnesses.js';
 import { createLogger } from './logger-utils.js';
 
@@ -123,9 +123,17 @@ async function main() {
           api = await HRAPI.deploy(providers, salary, logger);
           deployedByCandidate.set(candidateId, api);
           logger.info(`deployed contract for candidateId=${candidateId} at ${api.deployedContractAddress}`);
+          // The wallet needs to observe the deploy transaction's outputs
+          // before it can build the next (verifySalary) transaction's fee
+          // inputs. In the interactive CLI, the human typing at the prompt
+          // gave this time to happen in the background; here we wait for
+          // it explicitly.
+          logger.info('syncing wallet before verifySalary...');
+          await syncWallet(logger, walletProvider.wallet);
         }
 
         const verified = await api.verifySalary(budget);
+        logger.info(`verify result: candidateId=${candidateId} verified=${verified} contract=${api.deployedContractAddress}`);
         sendJson(res, 200, {
           verified,
           contractAddress: api.deployedContractAddress,
