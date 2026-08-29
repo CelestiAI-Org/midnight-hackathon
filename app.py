@@ -1,8 +1,10 @@
 
 import base64
-import hashlib
 import time
+import requests
 import streamlit as st
+
+HR_SERVICE_URL = "http://localhost:4000"
 
 st.set_page_config(
     page_title="HR Candidate Dashboard",
@@ -209,17 +211,29 @@ def candidate_status(candidate):
 
 
 def make_proof(candidate):
-    eligible = (
-        candidate["budget_min"]
-        <= candidate["salary_expectation"]
-        <= candidate["budget_max"]
-    )
-    raw = (
-        f'{candidate["id"]}|{candidate["salary_expectation"]}|'
-        f'{candidate["budget_min"]}|{candidate["budget_max"]}|{eligible}'
-    )
-    proof_id = hashlib.sha256(raw.encode("utf-8")).hexdigest()[:16].upper()
-    return eligible, proof_id
+    """
+    Calls the real Midnight HR verification service (hr-cli/src/server.ts).
+    Only candidateId and the public budget are sent — the candidate's actual
+    salary never leaves the Node service and is never part of this request
+    or its response. Note: this proves salary <= budget_max only (a
+    one-sided check), which is what the current contract supports; it does
+    not check budget_min the way the old mock did.
+    """
+    try:
+        resp = requests.post(
+            f"{HR_SERVICE_URL}/verify",
+            json={"candidateId": candidate["id"], "budget": candidate["budget_max"]},
+            timeout=60,  # real proof generation can take a while
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        eligible = data["verified"]
+        # Real on-chain contract address, used as the "proof id" shown in the UI.
+        proof_id = data["contractAddress"][:16].upper()
+        return eligible, proof_id
+    except requests.RequestException as e:
+        st.error(f"Verification service unreachable: {e}")
+        return False, "ERROR"
 
 
 # If a card's View Profile link was clicked, load that profile.
