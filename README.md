@@ -1,5 +1,7 @@
 # Privacy-Preserving HR Verification
 
+**Demo:** https://youtu.be/e4pDdONU-4o
+
 > **Verify sensitive HR information without exposing the underlying data.**
 
 A privacy-preserving HR verification prototype built with **Midnight** and **Compact**.
